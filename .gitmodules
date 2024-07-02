@@ -1,6 +1,6 @@
 [submodule "OtusHub"]
-    path = OtusHub
-    url = https://github.com/ChaoticGoodAdmi/OtusHub.git
+	path = OtusHub
+	url = https://github.com/ChaoticGoodAdmi/OtusHub.git
 [submodule "OtusHub-front"]
-    path = OtusHub-front
-    url = https://github.com/ChaoticGoodAdmi/OtusHub-front.git
+	path = OtusHub-front
+	url = https://github.com/ChaoticGoodAdmi/OtusHub-front.git
