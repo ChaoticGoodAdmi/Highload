@@ -11,36 +11,36 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - otus_network
 
-  app:
-    build: .
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5433/otushub
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
-      SPRING_JPA_GENERATE_DDL: "false"
-      SPRING_JPA_HIBERNATE_DDL_AUTO: "none"
-      JWT_SECRET: "eyJhbGciOiJIUzI1NiJ9.eyJSb2xlIjoiQWRtaW4iLCJJc3N1ZXIiOiJLaXIgVXNoYWtvdnYiLCJVc2VybmFtZSI6InVzZXItc2VydmljZSIsImV4cCI6MTcxOTI5ODk0NCwiaWF0IjoxNzE5Mjk4OTQ0fQ.kUPsL0suGFf_7zDyfv1X3kY4ps5UT_m7-UiXjFrmOMA"
-      JWT_EXPIRATION_MS: 86400000
-      SPRING_FLYWAY_LOCATIONS: classpath:db/migration
-      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+  backend:
+    build:
+      context: ./OtusHub
+      dockerfile: Dockerfile
     ports:
       - "4242:4242"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - otus_network
 
   frontend:
     build:
       context: ./OtusHub-front
+      dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3000:80"
     networks:
       - otus_network
     depends_on:
-      - app
+      - backend
 
 networks:
   otus_network:
