@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  postgres-master:
+    image: postgres
+    container_name: postgres-master
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ../volumes/pgmaster:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - otus_network
+
+  postgresslaveone:
+    image: postgres
+    container_name: postgresslaveone
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: postgres
+    ports:
+      - "15432:5432"
+    volumes:
+      - ../volumes/pgslavenew:/var/lib/postgresql/data
+    restart: unless-stopped
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - otus_network
+
+  postgresslavetwo:
+    image: postgres
+    container_name: postgresslavetwo
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: postgres
+    ports:
+      - "25432:5432"
+    volumes:
+      - ../volumes/pgasyncslave:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - otus_network
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  pgpool:
+    image: bitnami/pgpool:latest
+    container_name: pgpool
+    environment:
+      - PGPOOL_BACKEND_NODES=0:postgres-master:5432,1:postgresslaveone:5432,2:postgresslavetwo:5432
+      - PGPOOL_SR_CHECK_USER=postgres
+      - PGPOOL_SR_CHECK_PASSWORD=pass
+      - PGPOOL_ADMIN_USERNAME=admin
+      - PGPOOL_ADMIN_PASSWORD=admin_pass
+      - PGPOOL_POSTGRES_USERNAME=postgres
+      - PGPOOL_POSTGRES_PASSWORD=pass
+      - PGPOOL_NUM_INIT_CHILDREN=100
+      - PGPOOL_MAX_POOL=10
+      - PGPOOL_LOAD_BALANCING_MODE=true
+      - PGPOOL_MODE=replication
+      - PGPOOL_MASTER_SLAVE_MODE=true
+      - PGPOOL_SLAVE_LOAD_BALANCE=true
+      - PGPOOL_FAILOVER_COMMAND='/usr/local/bin/failover.sh %d %H %P %R'
+      - PGPOOL_FAILOVER_ON_BACKEND_ERROR=true
+      - PGPOOL_HEALTH_CHECK_PERIOD=30
+      - PGPOOL_HEALTH_CHECK_TIMEOUT=10
+      - PGPOOL_HEALTH_CHECK_RETRIES=5
+    links:
+      - postgres-master
+      - postgresslaveone
+      - postgresslavetwo
+    ports:
+      - "9999:5432"
+    healthcheck:
+      test: [ "CMD", "/opt/bitnami/scripts/pgpool/healthcheck.sh" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - otus_network
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+      postgresslaveone:
+        condition: service_healthy
+      postgresslavetwo:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ../OtusHub
+      dockerfile: Dockerfile
+    ports:
+      - "4242:4242"
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+      pgpool:
+        condition: service_healthy
+    networks:
+      - otus_network
+
+networks:
+  otus_network:
+    driver: bridge
+    external: true
