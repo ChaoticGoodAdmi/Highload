@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -28,8 +28,22 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      cache:
+        condition: service_healthy
     networks:
       - otus_network
+
+  cache:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - otus_network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      interval: 1s
+      timeout: 3s
+      retries: 5
 
   frontend:
     build:
